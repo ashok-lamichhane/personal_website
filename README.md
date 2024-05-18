@@ -1,14 +1,6 @@
 # Portfolio Website
 Hello everyone. This is my personal portfolio website, showcasing my skills, experience, and projects. The website is built using HTML, CSS, and JavaScript, and is hosted on GitHub. 
 
-## Table of Contents
-#### Features
-#### Installation
-#### Usage
-#### Technologies Used
-#### Contributing
-#### License
-
 
 ## Features
 
@@ -29,13 +21,13 @@ Then, follow these steps:
 
 1.Clone this repository by running the following command in your terminal or command prompt:
   ```
-git clone https://github.com/alansomathew/resume.git
+git clone https://github.com/ashok-lamichhane/personal_website.git
   ```
 
 2.Navigate to the project directory by running the command: 
 
   ```
-cd resume
+cd personal_website
   ```
 3.Open the index.html file in your web browser.
 
