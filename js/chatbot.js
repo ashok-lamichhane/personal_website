@@ -2,12 +2,16 @@
 // Portfolio Chatbot with Google Gemini API ONLY
 
 class PortfolioChatbot {
-    constructor() {
+       constructor() {
         this.isOpen = false;
         this.messages = [];
-        // API key will be injected by GitHub Actions
-        this.geminiApiKey = window.GOOGLE_API_KEY || null;
+        // Read API key from window object (set by api-config.js)
+        this.geminiApiKey = window.GOOGLE_API_KEY;
         this.apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+        
+        console.log('🔑 API Key exists:', !!this.geminiApiKey);
+        console.log('🔑 API Key length:', this.geminiApiKey ? this.geminiApiKey.length : 0);
+        
         this.init();
     }
 
