@@ -1,19 +1,11 @@
 // js/chatbot.js
-// DeepSeek Portfolio Chatbot - Client-Side Version
-
-// IMPORTANT: In production, you should use environment variables
-// For GitHub Pages, you'll need to store your API key securely
-// Method 1: Use GitHub Secrets + GitHub Actions (recommended)
-// Method 2: Use a free backend proxy (e.g., Cloudflare Worker)
-
-// For now, let's create the chatbot UI and functionality
-// You'll add your API key through environment variables
+// DeepSeek Portfolio Chatbot - Client-Side Version with Cloudflare Worker Proxy
 
 class PortfolioChatbot {
-    constructor(apiKey) {
-        this.apiKey = apiKey;
+    constructor() {
         this.isOpen = false;
         this.messages = [];
+        this.workerUrl = 'https://deepseek-proxy.ashok-lamichhane01.workers.dev/'; // ← CHANGE THIS to your Worker URL
         this.init();
     }
 
@@ -179,6 +171,7 @@ class PortfolioChatbot {
         }
     }
 
+    // ⬇️⬇️⬇️ THIS IS THE ONLY METHOD THAT CHANGED ⬇️⬇️⬇️
     async callDeepSeekAPI(userMessage) {
         // System prompt with your personal info
         const systemPrompt = `You are Ashok Lamichhane's personal AI assistant for his portfolio website. 
@@ -198,37 +191,57 @@ IMPORTANT RULES:
 
 5. Be friendly and professional.`;
 
-        // Get API key from window object (set in index.html)
-        const apiKey = window.DEEPSEEK_API_KEY;
-        
-        if (!apiKey) {
-            throw new Error('API key not configured');
+        try {
+            // Send request to Cloudflare Worker instead of DeepSeek directly
+            const response = await fetch(this.workerUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // ⚠️ NO Authorization header here - Worker handles it!
+                },
+                body: JSON.stringify({
+                    model: 'deepseek-chat',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userMessage }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 500
+                })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('API Error Response:', errorText);
+                
+                if (response.status === 401) {
+                    throw new Error('Invalid API key. Please check your key.');
+                } else if (response.status === 403) {
+                    throw new Error('API key permission denied.');
+                } else if (response.status === 429) {
+                    throw new Error('Rate limit exceeded. Please wait.');
+                } else {
+                    throw new Error(`API error: ${response.status} - ${errorText}`);
+                }
+            }
+
+            const data = await response.json();
+            
+            if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+                throw new Error('Invalid API response structure');
+            }
+            
+            return data.choices[0].message.content;
+            
+        } catch (error) {
+            // Check if it's a network error
+            if (error.message.includes('fetch') || error.message.includes('network')) {
+                throw new Error('Network error - please check your internet connection.');
+            }
+            throw error;
         }
-
-        const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: 'deepseek-chat',
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: userMessage }
-                ],
-                temperature: 0.7,
-                max_tokens: 500
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        return data.choices[0].message.content;
     }
+    // ⬆️⬆️⬆️ THIS IS THE ONLY METHOD THAT CHANGED ⬆️⬆️⬆️
 
     addMessage(text, sender) {
         const messagesDiv = document.getElementById('chat-messages');
@@ -274,10 +287,7 @@ IMPORTANT RULES:
 
 // Initialize chatbot when page loads
 document.addEventListener('DOMContentLoaded', () => {
-    // Check if API key is available
-    if (window.DEEPSEEK_API_KEY) {
-        window.chatbot = new PortfolioChatbot(window.DEEPSEEK_API_KEY);
-    } else {
-        console.warn('DeepSeek API key not configured. Chatbot will not work.');
-    }
+    // No API key needed anymore - Worker handles it!
+    window.chatbot = new PortfolioChatbot();
+    console.log('✅ Chatbot initialized with Cloudflare Worker proxy');
 });
