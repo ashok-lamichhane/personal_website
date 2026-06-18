@@ -1,12 +1,12 @@
 // js/chatbot.js
-// Portfolio Chatbot with Google Gemini API (Using GitHub Secrets)
+// Portfolio Chatbot with Google Gemini API ONLY
 
 class PortfolioChatbot {
     constructor() {
         this.isOpen = false;
         this.messages = [];
         // API key will be injected by GitHub Actions
-        this.geminiApiKey = window.GOOGLE_API_KEY || 'YOUR_GEMINI_API_KEY_HERE';
+        this.geminiApiKey = window.GOOGLE_API_KEY || null;
         this.apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
         this.init();
     }
@@ -22,9 +22,9 @@ class PortfolioChatbot {
         this.setupEventListeners();
         
         // Check if API key is configured
-        if (!this.geminiApiKey || this.geminiApiKey === 'YOUR_GEMINI_API_KEY_HERE') {
-            console.warn('⚠️ Google Gemini API key not configured. Please add your API key.');
-            this.addMessageToChat('⚠️ Chatbot is not configured. Please add your Google Gemini API key.', 'assistant');
+        if (!this.geminiApiKey) {
+            console.warn('⚠️ Google Gemini API key not configured.');
+            this.addSystemMessage('⚠️ Chatbot is not configured. Please set up your Google Gemini API key.');
         } else {
             console.log('✅ Google Gemini API key found!');
         }
@@ -167,6 +167,11 @@ class PortfolioChatbot {
         const sendBtn = document.getElementById('chat-send');
         const input = document.getElementById('chat-input');
         
+        if (!toggleBtn || !chatWindow || !closeBtn || !sendBtn || !input) {
+            console.error('❌ Chat elements not found!');
+            return;
+        }
+        
         toggleBtn.addEventListener('click', () => {
             chatWindow.style.display = 'flex';
             toggleBtn.style.display = 'none';
@@ -187,6 +192,12 @@ class PortfolioChatbot {
         const input = document.getElementById('chat-input');
         const message = input.value.trim();
         if (!message) return;
+        
+        // Check if API key exists
+        if (!this.geminiApiKey) {
+            this.addMessage('⚠️ Chatbot is not configured. Please set up your Google Gemini API key.', 'assistant');
+            return;
+        }
         
         // Disable input while processing
         input.disabled = true;
@@ -214,6 +225,8 @@ class PortfolioChatbot {
                 errorMessage += 'Too many requests. Please try again later.';
             } else if (error.message.includes('network')) {
                 errorMessage += 'Please check your internet connection.';
+            } else if (error.message.includes('403')) {
+                errorMessage += 'API key is invalid or has insufficient permissions.';
             } else {
                 errorMessage += 'Please try again later.';
             }
@@ -226,11 +239,6 @@ class PortfolioChatbot {
     }
 
     async callGeminiAPI(userMessage) {
-        // Check if API key is configured
-        if (!this.geminiApiKey || this.geminiApiKey === 'YOUR_GEMINI_API_KEY_HERE') {
-            throw new Error('Gemini API key not configured. Please add your API key.');
-        }
-
         // Build the system prompt with personal information
         const systemPrompt = `You are Ashok Lamichhane's personal AI assistant for his portfolio website.
 
@@ -253,7 +261,7 @@ IMPORTANT RULES:
 6. If you don't know something, say "I don't have that information in my knowledge base."`;
 
         try {
-            // Call Google Gemini API
+            // Call Google Gemini API directly (no proxy!)
             const response = await fetch(`${this.apiUrl}?key=${this.geminiApiKey}`, {
                 method: 'POST',
                 headers: {
@@ -289,7 +297,7 @@ IMPORTANT RULES:
                 const errorData = await response.json();
                 console.error('Gemini API Error:', errorData);
                 
-                if (response.status === 403) {
+                if (response.status === 403 || response.status === 401) {
                     throw new Error('Invalid API key. Please check your Gemini API key.');
                 } else if (response.status === 429) {
                     throw new Error('Rate limit exceeded. Please wait and try again.');
@@ -320,6 +328,8 @@ IMPORTANT RULES:
 
     addMessage(text, sender) {
         const messagesDiv = document.getElementById('chat-messages');
+        if (!messagesDiv) return;
+        
         const messageDiv = document.createElement('div');
         messageDiv.style.cssText = `
             margin-bottom: 12px;
@@ -344,8 +354,7 @@ IMPORTANT RULES:
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
-    addMessageToChat(text, sender) {
-        // Special method for adding messages without user interaction
+    addSystemMessage(text) {
         const messagesDiv = document.getElementById('chat-messages');
         if (!messagesDiv) return;
         
@@ -353,15 +362,15 @@ IMPORTANT RULES:
         messageDiv.style.cssText = `
             margin-bottom: 12px;
             max-width: 85%;
-            ${sender === 'user' ? 'margin-left: auto;' : 'margin-right: auto;'}
+            animation: slideIn 0.3s ease;
         `;
         messageDiv.innerHTML = `
             <div style="
-                background: ${sender === 'user' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'white'};
-                color: ${sender === 'user' ? 'white' : '#333'};
+                background: #fff3cd;
+                color: #856404;
                 padding: 12px 15px;
-                border-radius: ${sender === 'user' ? '15px 15px 5px 15px' : '15px 15px 15px 5px'};
-                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+                border-radius: 10px;
+                border: 1px solid #ffc107;
                 word-wrap: break-word;
                 line-height: 1.4;
             ">
@@ -379,7 +388,7 @@ IMPORTANT RULES:
     }
 
     showTypingIndicator() {
-        this.hideTypingIndicator(); // Remove existing indicator
+        this.hideTypingIndicator();
         
         const messagesDiv = document.getElementById('chat-messages');
         if (!messagesDiv) return;
@@ -453,5 +462,4 @@ document.head.appendChild(style);
 document.addEventListener('DOMContentLoaded', () => {
     window.chatbot = new PortfolioChatbot();
     console.log('✅ Chatbot initialized with Google Gemini API');
-    console.log('🔑 API key loaded from GitHub Secret');
 });
