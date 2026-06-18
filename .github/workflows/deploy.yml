@@ -20,7 +20,7 @@ jobs:
       - name: Replace API Key in HTML
         run: |
           # Replace placeholder with actual API key from GitHub Secrets
-          sed -i "s/\${DEEPSEEK_API_KEY}/${{ secrets.DEEPSEEK_API_KEY }}/g" index.html
+          sed -i "s/\${GOOGLE_API_KEY}/${{ secrets.GOOGLE_API_KEY }}/g" index.html
       
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
@@ -30,4 +30,4 @@ jobs:
           force_orphan: true
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: 'Deploy with DeepSeek API key'
+          commit_message: 'Deploy with Google Gemini API key'
