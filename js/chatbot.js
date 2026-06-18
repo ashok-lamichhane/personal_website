@@ -1,11 +1,13 @@
 // js/chatbot.js
-// DeepSeek Portfolio Chatbot - Client-Side Version with Cloudflare Worker Proxy
+// Portfolio Chatbot with Google Gemini API (Using GitHub Secrets)
 
 class PortfolioChatbot {
     constructor() {
         this.isOpen = false;
         this.messages = [];
-        this.workerUrl = 'https://deepseek-proxy.ashok-lamichhane01.workers.dev/'; // ← CHANGE THIS to your Worker URL
+        // API key will be injected by GitHub Actions
+        this.geminiApiKey = window.GOOGLE_API_KEY || 'YOUR_GEMINI_API_KEY_HERE';
+        this.apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
         this.init();
     }
 
@@ -18,6 +20,14 @@ class PortfolioChatbot {
         
         // Set up event listeners
         this.setupEventListeners();
+        
+        // Check if API key is configured
+        if (!this.geminiApiKey || this.geminiApiKey === 'YOUR_GEMINI_API_KEY_HERE') {
+            console.warn('⚠️ Google Gemini API key not configured. Please add your API key.');
+            this.addMessageToChat('⚠️ Chatbot is not configured. Please add your Google Gemini API key.', 'assistant');
+        } else {
+            console.log('✅ Google Gemini API key found!');
+        }
     }
 
     extractPersonalInfo() {
@@ -46,14 +56,15 @@ class PortfolioChatbot {
                 <button id="chat-toggle" style="
                     width: 60px;
                     height: 60px;
-                    border-radius: 30px;
-                    background: #0066cc;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     color: white;
                     border: none;
                     cursor: pointer;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-                    font-size: 24px;
-                ">
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                    font-size: 28px;
+                    transition: transform 0.2s;
+                " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
                     💬
                 </button>
                 
@@ -62,24 +73,33 @@ class PortfolioChatbot {
                     position: absolute;
                     bottom: 80px;
                     right: 0;
-                    width: 350px;
-                    height: 500px;
+                    width: 380px;
+                    max-height: 550px;
                     background: white;
-                    border-radius: 10px;
-                    box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+                    border-radius: 12px;
+                    box-shadow: 0 5px 30px rgba(0,0,0,0.2);
                     display: none;
                     flex-direction: column;
                     overflow: hidden;
+                    border: 1px solid #e0e0e0;
                 ">
                     <!-- Header -->
                     <div style="
-                        background: #0066cc;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                         color: white;
-                        padding: 15px;
-                        font-weight: bold;
+                        padding: 15px 20px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
                     ">
-                        Chat with Ashok's AI Assistant
-                        <button id="chat-close" style="float: right; background: none; border: none; color: white; cursor: pointer;">✕</button>
+                        <span style="font-weight: bold; font-size: 16px;">🤖 Ashok's AI Assistant</span>
+                        <button id="chat-close" style="
+                            background: none;
+                            border: none;
+                            color: white;
+                            cursor: pointer;
+                            font-size: 20px;
+                        ">✕</button>
                     </div>
                     
                     <!-- Messages Area -->
@@ -87,36 +107,51 @@ class PortfolioChatbot {
                         flex: 1;
                         overflow-y: auto;
                         padding: 15px;
-                        background: #f5f5f5;
+                        background: #f8f9fa;
+                        min-height: 350px;
                     ">
                         <div style="
                             background: white;
-                            padding: 10px;
-                            border-radius: 10px;
-                            margin-bottom: 10px;
-                            max-width: 80%;
+                            padding: 12px 15px;
+                            border-radius: 15px 15px 15px 5px;
+                            margin-bottom: 12px;
+                            max-width: 85%;
+                            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+                            line-height: 1.4;
                         ">
                             👋 Hi! I'm Ashok's AI assistant. Ask me about his skills, projects, or experience!
                         </div>
                     </div>
                     
                     <!-- Input Area -->
-                    <div style="padding: 15px; background: white; border-top: 1px solid #ddd;">
+                    <div style="
+                        padding: 15px;
+                        background: white;
+                        border-top: 1px solid #e0e0e0;
+                        display: flex;
+                        gap: 10px;
+                    ">
                         <input type="text" id="chat-input" placeholder="Ask me anything..." style="
-                            width: 80%;
-                            padding: 8px;
-                            border: 1px solid #ddd;
-                            border-radius: 5px;
-                        ">
+                            flex: 1;
+                            padding: 10px 12px;
+                            border: 2px solid #e0e0e0;
+                            border-radius: 8px;
+                            font-size: 14px;
+                            outline: none;
+                            transition: border-color 0.3s;
+                        " onfocus="this.style.borderColor='#667eea'" onblur="this.style.borderColor='#e0e0e0'">
                         <button id="chat-send" style="
-                            width: 15%;
-                            padding: 8px;
-                            background: #0066cc;
+                            padding: 10px 20px;
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                             color: white;
                             border: none;
-                            border-radius: 5px;
+                            border-radius: 8px;
                             cursor: pointer;
-                        ">Send</button>
+                            font-weight: bold;
+                            transition: transform 0.1s;
+                        " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                            Send
+                        </button>
                     </div>
                 </div>
             </div>
@@ -153,6 +188,10 @@ class PortfolioChatbot {
         const message = input.value.trim();
         if (!message) return;
         
+        // Disable input while processing
+        input.disabled = true;
+        input.placeholder = 'Processing...';
+        
         // Add user message to chat
         this.addMessage(message, 'user');
         input.value = '';
@@ -161,119 +200,212 @@ class PortfolioChatbot {
         this.showTypingIndicator();
         
         try {
-            const response = await this.callDeepSeekAPI(message);
+            const response = await this.callGeminiAPI(message);
             this.hideTypingIndicator();
             this.addMessage(response, 'assistant');
         } catch (error) {
             this.hideTypingIndicator();
-            this.addMessage("Sorry, I'm having trouble connecting. Please try again later.", 'assistant');
             console.error('Chat error:', error);
+            
+            let errorMessage = 'Sorry, I\'m having trouble connecting. ';
+            if (error.message.includes('API key')) {
+                errorMessage += 'Please check your Gemini API key.';
+            } else if (error.message.includes('429')) {
+                errorMessage += 'Too many requests. Please try again later.';
+            } else if (error.message.includes('network')) {
+                errorMessage += 'Please check your internet connection.';
+            } else {
+                errorMessage += 'Please try again later.';
+            }
+            this.addMessage(errorMessage, 'assistant');
+        } finally {
+            input.disabled = false;
+            input.placeholder = 'Ask me anything...';
+            input.focus();
         }
     }
 
-    // ⬇️⬇️⬇️ THIS IS THE ONLY METHOD THAT CHANGED ⬇️⬇️⬇️
-    async callDeepSeekAPI(userMessage) {
-        // System prompt with your personal info
-        const systemPrompt = `You are Ashok Lamichhane's personal AI assistant for his portfolio website. 
-        
+    async callGeminiAPI(userMessage) {
+        // Check if API key is configured
+        if (!this.geminiApiKey || this.geminiApiKey === 'YOUR_GEMINI_API_KEY_HERE') {
+            throw new Error('Gemini API key not configured. Please add your API key.');
+        }
+
+        // Build the system prompt with personal information
+        const systemPrompt = `You are Ashok Lamichhane's personal AI assistant for his portfolio website.
+
 IMPORTANT RULES:
 1. ALWAYS prioritize answering questions using Ashok's personal information first:
    - Name: ${this.personalInfo.name}
    - Skills: ${this.personalInfo.skills.join(', ')}
    - Projects: ${JSON.stringify(this.personalInfo.projects)}
    - Contact: Phone - ${this.personalInfo.contact.phone}, Email - ${this.personalInfo.contact.email}, GitHub - ${this.personalInfo.contact.github}
+   - Bio: ${this.personalInfo.bio}
    
 2. If someone asks about Ashok's qualifications, experience, or contact info, answer from the data above.
 
 3. For general questions not about Ashok (like "What is Python?" or "How to learn coding?"), answer helpfully from your general knowledge.
 
-4. Keep responses concise (2-3 sentences max for general questions).
+4. Keep responses concise (2-3 sentences for general questions, slightly longer for detailed questions).
 
-5. Be friendly and professional.`;
+5. Be friendly, professional, and helpful.
+
+6. If you don't know something, say "I don't have that information in my knowledge base."`;
 
         try {
-            // Send request to Cloudflare Worker instead of DeepSeek directly
-            const response = await fetch(this.workerUrl, {
+            // Call Google Gemini API
+            const response = await fetch(`${this.apiUrl}?key=${this.geminiApiKey}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    // ⚠️ NO Authorization header here - Worker handles it!
                 },
                 body: JSON.stringify({
-                    model: 'deepseek-chat',
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: userMessage }
-                    ],
-                    temperature: 0.7,
-                    max_tokens: 500
+                    contents: [{
+                        parts: [
+                            { text: systemPrompt },
+                            { text: `User: ${userMessage}` }
+                        ]
+                    }],
+                    generationConfig: {
+                        temperature: 0.7,
+                        maxOutputTokens: 500,
+                        topP: 0.8,
+                        topK: 40
+                    },
+                    safetySettings: [
+                        {
+                            category: "HARM_CATEGORY_HARASSMENT",
+                            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                        },
+                        {
+                            category: "HARM_CATEGORY_HATE_SPEECH",
+                            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                        }
+                    ]
                 })
             });
 
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error('API Error Response:', errorText);
+                const errorData = await response.json();
+                console.error('Gemini API Error:', errorData);
                 
-                if (response.status === 401) {
-                    throw new Error('Invalid API key. Please check your key.');
-                } else if (response.status === 403) {
-                    throw new Error('API key permission denied.');
+                if (response.status === 403) {
+                    throw new Error('Invalid API key. Please check your Gemini API key.');
                 } else if (response.status === 429) {
-                    throw new Error('Rate limit exceeded. Please wait.');
+                    throw new Error('Rate limit exceeded. Please wait and try again.');
                 } else {
-                    throw new Error(`API error: ${response.status} - ${errorText}`);
+                    throw new Error(`API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
                 }
             }
 
             const data = await response.json();
             
-            if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-                throw new Error('Invalid API response structure');
+            // Extract the response text
+            if (data.candidates && data.candidates.length > 0) {
+                const candidate = data.candidates[0];
+                if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
+                    return candidate.content.parts[0].text;
+                }
             }
             
-            return data.choices[0].message.content;
+            throw new Error('Invalid response structure from Gemini API');
             
         } catch (error) {
-            // Check if it's a network error
             if (error.message.includes('fetch') || error.message.includes('network')) {
                 throw new Error('Network error - please check your internet connection.');
             }
             throw error;
         }
     }
-    // ⬆️⬆️⬆️ THIS IS THE ONLY METHOD THAT CHANGED ⬆️⬆️⬆️
 
     addMessage(text, sender) {
         const messagesDiv = document.getElementById('chat-messages');
         const messageDiv = document.createElement('div');
         messageDiv.style.cssText = `
-            margin-bottom: 10px;
-            max-width: 80%;
+            margin-bottom: 12px;
+            max-width: 85%;
             ${sender === 'user' ? 'margin-left: auto;' : 'margin-right: auto;'}
+            animation: slideIn 0.3s ease;
         `;
         messageDiv.innerHTML = `
             <div style="
-                background: ${sender === 'user' ? '#0066cc' : 'white'};
-                color: ${sender === 'user' ? 'white' : 'black'};
-                padding: 10px;
-                border-radius: 10px;
+                background: ${sender === 'user' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'white'};
+                color: ${sender === 'user' ? 'white' : '#333'};
+                padding: 12px 15px;
+                border-radius: ${sender === 'user' ? '15px 15px 5px 15px' : '15px 15px 15px 5px'};
+                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+                word-wrap: break-word;
+                line-height: 1.4;
             ">
-                ${text}
+                ${this.escapeHTML(text)}
             </div>
         `;
         messagesDiv.appendChild(messageDiv);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
-    showTypingIndicator() {
+    addMessageToChat(text, sender) {
+        // Special method for adding messages without user interaction
         const messagesDiv = document.getElementById('chat-messages');
-        this.typingDiv = document.createElement('div');
-        this.typingDiv.id = 'typing-indicator';
-        this.typingDiv.innerHTML = `
-            <div style="background: white; padding: 10px; border-radius: 10px; width: 50px;">
-                Typing...
+        if (!messagesDiv) return;
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.style.cssText = `
+            margin-bottom: 12px;
+            max-width: 85%;
+            ${sender === 'user' ? 'margin-left: auto;' : 'margin-right: auto;'}
+        `;
+        messageDiv.innerHTML = `
+            <div style="
+                background: ${sender === 'user' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'white'};
+                color: ${sender === 'user' ? 'white' : '#333'};
+                padding: 12px 15px;
+                border-radius: ${sender === 'user' ? '15px 15px 5px 15px' : '15px 15px 15px 5px'};
+                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+                word-wrap: break-word;
+                line-height: 1.4;
+            ">
+                ${this.escapeHTML(text)}
             </div>
         `;
+        messagesDiv.appendChild(messageDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    escapeHTML(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    showTypingIndicator() {
+        this.hideTypingIndicator(); // Remove existing indicator
+        
+        const messagesDiv = document.getElementById('chat-messages');
+        if (!messagesDiv) return;
+        
+        this.typingDiv = document.createElement('div');
+        this.typingDiv.id = 'typing-indicator';
+        this.typingDiv.style.cssText = `
+            margin-bottom: 12px;
+            margin-right: auto;
+            max-width: 85%;
+        `;
+        
+        this.typingDiv.innerHTML = `
+            <div style="
+                background: white;
+                padding: 12px 20px;
+                border-radius: 15px 15px 15px 5px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+                display: inline-block;
+            ">
+                <span style="display: inline-block; animation: dotPulse 1.4s infinite;">●</span>
+                <span style="display: inline-block; animation: dotPulse 1.4s infinite 0.2s;">●</span>
+                <span style="display: inline-block; animation: dotPulse 1.4s infinite 0.4s;">●</span>
+            </div>
+        `;
+        
         messagesDiv.appendChild(this.typingDiv);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
@@ -281,13 +413,45 @@ IMPORTANT RULES:
     hideTypingIndicator() {
         if (this.typingDiv) {
             this.typingDiv.remove();
+            this.typingDiv = null;
         }
     }
 }
 
+// Add CSS animations
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes dotPulse {
+        0%, 20% {
+            opacity: 0.2;
+            transform: scale(0.8);
+        }
+        50% {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+        100% {
+            opacity: 0.2;
+            transform: scale(0.8);
+        }
+    }
+`;
+document.head.appendChild(style);
+
 // Initialize chatbot when page loads
 document.addEventListener('DOMContentLoaded', () => {
-    // No API key needed anymore - Worker handles it!
     window.chatbot = new PortfolioChatbot();
-    console.log('✅ Chatbot initialized with Cloudflare Worker proxy');
+    console.log('✅ Chatbot initialized with Google Gemini API');
+    console.log('🔑 API key loaded from GitHub Secret');
 });
