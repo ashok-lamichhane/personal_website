@@ -5,7 +5,7 @@ on:
     branches: [ main, master ]
   workflow_dispatch: # Allow manual trigger
 
-# Give permissions
+# Give permissions to the workflow
 permissions:
   contents: write
   pages: write
@@ -19,45 +19,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
       
-      - name: Debug - Check if secret exists
-        run: |
-          if [ -n "${{ secrets.GOOGLE_API_KEY }}" ]; then
-            echo "✅ GOOGLE_API_KEY secret is set"
-            echo "Key length: ${#{{ secrets.GOOGLE_API_KEY }}}"
-          else
-            echo "❌ GOOGLE_API_KEY secret is NOT set"
-            exit 1
-          fi
-      
-      - name: Replace API Key in index.html
+      - name: Inject Google API Key
         run: |
           # Debug: Check if placeholder exists
-          if grep -q '${GOOGLE_API_KEY}' index.html; then
-            echo "✅ Placeholder found in index.html"
+          echo "Checking for placeholder in index.html..."
+          if grep -q '\${GOOGLE_API_KEY}' index.html; then
+            echo "✅ Placeholder found!"
           else
-            echo "❌ Placeholder NOT found in index.html"
-            echo "Current content of index.html:"
-            cat index.html | grep -A2 -B2 "GOOGLE_API" || echo "No GOOGLE_API found"
+            echo "❌ Placeholder NOT found!"
             exit 1
           fi
           
-          # Replace the placeholder
+          # Replace the placeholder with actual API key
           sed -i "s/\${GOOGLE_API_KEY}/${{ secrets.GOOGLE_API_KEY }}/g" index.html
           
-          # Debug: Check if replacement worked
+          # Verify injection
           if grep -q '${{ secrets.GOOGLE_API_KEY }}' index.html; then
-            echo "❌ Replacement failed - placeholder still present"
+            echo "❌ Replacement failed!"
+            exit 1
           else
-            echo "✅ Replacement successful"
-          fi
-      
-      - name: Debug - Check replaced content
-        run: |
-          echo "Checking if API key was injected:"
-          if grep -q 'AIza' index.html; then
-            echo "✅ API key (AIza) found in index.html"
-          else
-            echo "⚠️ API key not found in index.html"
+            echo "✅ API key injected successfully!"
           fi
       
       - name: Deploy to GitHub Pages
